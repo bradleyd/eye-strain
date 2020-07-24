@@ -3,10 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/gen2brain/beeep"
+	"github.com/getlantern/systray"
 )
 
 const (
@@ -53,8 +55,6 @@ func stop() {
 }
 
 func countdown(left time.Duration) {
-	var exitCode int
-
 	start(left)
 
 loop:
@@ -62,6 +62,7 @@ loop:
 		select {
 		case <-ticker.C:
 			left -= time.Duration(tick)
+			systray.SetTitle(left.String())
 			if debug {
 				fmt.Println(left)
 			}
@@ -70,9 +71,6 @@ loop:
 		}
 	}
 
-	if exitCode != 0 {
-		os.Exit(exitCode)
-	}
 }
 
 func notify() {
@@ -91,27 +89,55 @@ func beepWhenDone() {
 	}
 }
 
+func onReady() {
+	go func() {
+		duration, err := time.ParseDuration(seconds)
+		if err != nil {
+			fmt.Printf("error: invalid duration: %v\n", seconds)
+			os.Exit(2)
+		}
+		left := duration
+		systray.SetIcon(decodeIcon())
+
+		for {
+			countdown(left)
+			notify()
+			systray.SetTitle("Look away")
+			time.Sleep(sleepTime)
+			beepWhenDone()
+		}
+	}()
+	systray.SetTooltip("EyeStrain")
+	systray.AddSeparator()
+	mQuit := systray.AddMenuItem("Quit", "Quits this app")
+
+	go func() {
+		for {
+			select {
+			case <-mQuit.ClickedCh:
+				systray.Quit()
+				return
+			}
+		}
+	}()
+}
+func onExit() {
+	fmt.Println("Thats all folks!")
+}
+
+func getIcon(s string) []byte {
+	b, err := ioutil.ReadFile(s)
+	if err != nil {
+		fmt.Print(err)
+	}
+	return b
+}
+
 func main() {
 
-	flag.StringVar(&seconds, "s", "20m", "Interval in seconds")
+	flag.StringVar(&seconds, "s", "1m", "Interval in seconds")
 	flag.BoolVar(&debug, "d", false, "Turn on debug (default false)")
 	flag.BoolVar(&quiet, "q", false, "Dont beep or notify (default false)")
 	flag.Parse()
-
-	duration, err := time.ParseDuration(seconds)
-	if err != nil {
-		fmt.Printf("error: invalid duration: %v\n", seconds)
-		os.Exit(2)
-	}
-	left := duration
-	for {
-		countdown(left)
-		if debug {
-			fmt.Print("Look away at 20 feet for 20 seconds...")
-		}
-		beepWhenDone()
-		notify()
-		time.Sleep(sleepTime)
-		beepWhenDone()
-	}
+	systray.Run(onReady, onExit)
 }
