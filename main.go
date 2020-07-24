@@ -74,7 +74,7 @@ loop:
 }
 
 func notify() {
-	err := beeep.Notify("eye-strain", "Please look away for 20 seconds at something 20 feet away.", "")
+	err := beeep.Notify("eye-strain", "Please look away for 20 seconds at something 20 feet away.", "Resources/applet.icns")
 	if err != nil {
 		panic(err)
 	}
@@ -135,7 +135,7 @@ func getIcon(s string) []byte {
 
 func main() {
 
-	flag.StringVar(&seconds, "s", "1m", "Interval in seconds")
+	flag.StringVar(&seconds, "s", "20m", "Interval in seconds")
 	flag.BoolVar(&debug, "d", false, "Turn on debug (default false)")
 	flag.BoolVar(&quiet, "q", false, "Dont beep or notify (default false)")
 	flag.Parse()
